@@ -36,7 +36,7 @@ jobs:
       - name: download source
         run: |
           wget https://www.python.org/ftp/python/${{ env.PY_VERSION }}/Python-${{ env.PY_VERSION }}.tar.xz -O Python-${{ env.PY_VERSION }}.tar.xz
-          tar xf Python-${{ env.PY_VERSION }}.tar.xz
+          tar -xf Python-${{ env.PY_VERSION }}.tar.xz
 
       - name: Host - update
         run: sudo apt-get update
@@ -100,7 +100,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           prerelease: false
-          name: python for ubuntu ${{ github.ref }}
+          name: python ${{ github.ref }}
           bodyFile: release.md
           artifacts: python-${{ env.PY_VERSION }}-${{ matrix.arch }}.7z
           allowUpdates: true
