@@ -20,7 +20,6 @@ jobs:
           16.04,
           18.04,
           20.04,
-          22.04,
           ]
         arch:
           [
@@ -54,20 +53,26 @@ jobs:
       - name: Host - Docker multiarch bootstrap
         run: sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
+      - name: Host - Create Docker template env file
+        run: |
+          echo "PATH=/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > env.custom
+          echo "DEBIAN_FRONTEND=noninteractive" >> env.custom
+          echo "TZ=Etc/UTC" >> env.custom
+
       - name: Host - Create docker container
-        run: docker run --name ${{ matrix.os_name }} --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
+        run: docker run --name ${{ matrix.os_name }} --env-file env.custom --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
 
       - name: Docker - apt-get update
-        run: docker exec -w /root ${{ matrix.os_name }} apt-get update
+        run: docker exec --env-file env.custom -w /root ${{ matrix.os_name }} apt-get update
 
       - name: Docker - apk install build deps
-        run: docker exec -w /root ${{ matrix.os_name }} apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev tk-dev libffi-dev liblzma-dev
+        run: docker exec --env-file env.custom -w /root ${{ matrix.os_name }} apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev tk-dev libffi-dev liblzma-dev
 
       - name: Docker - configure
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
+        run: docker exec --env-file env.custom -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
 
       - name: Docker - build
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} make -j"$(nproc)" install
+        run: docker exec --env-file env.custom -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} make -j"$(nproc)" install
 
       # 7z压缩
       - name: Host - 7zip
