@@ -12,6 +12,8 @@ build python for Linux
 | ppc64le | Power PC 64 LE |
 | s390x   | IBM System z   |
 
+- s390x不太常见，本仓库就不提供了
+
 ### 操作系统与编译依赖库版本(普通Linux发行版)
 
 | 操作系统         | gcc版本  | libc版本 | binutils版本 | 
@@ -34,12 +36,10 @@ build python for Linux
 | alpine 3.11 | 9.3.0  | 1.1.24 | 2.33.1     |
 | alpine 3.13 | 10.2.1 | 1.2.2  | 2.35.2     |
 
-- 备注：从alpine v3.7开始才支持除了amd64以外的架构，所以就以v3.7为起始
-
 ### 如何选择包
 
 1. 使用命令```uname -a```查看自己系统名称和CPU架构；
-2. 例如CPU架构是x86_64则选择文件名含amd64或x86_64的包；
+2. 例如CPU架构是x86_64则选择文件名含amd64或x86_64的包，其中arm64架构的CPU一般也能运行armv7的包；
 3. 大部分Linux发行版都是使用gnu工具链构建，其中例外的是alpine，它使用musl工具链构建；
 4. gun工具链使用glibc，而musl工具链使用musl libc；
 5. alpine发行版选择alpine包，除此之外的大部分发行版选择ubuntu包；
@@ -47,8 +47,7 @@ build python for Linux
 7. 使用命令```ldd --version```查看自己系统libc版本
 8. 使用命令```ld -v```查看自己系统binutils版本
 9. 找到与自己的系统libc等相匹配的版本，性能当然是最佳的
-10. 不是完全匹配的情况下，则可以选择更老系统环境编译出来的版本
-11. 例如你的系统libc版本是2.30，那么你可以选择libc2.27或libc2.23系统下编译出来的文件
+10. 不是完全匹配的情况下，则可以选择更老版本libc的包
 
 ### 部署
 
