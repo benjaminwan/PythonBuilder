@@ -1,0 +1,113 @@
+name: alpine
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: [alpine]
+        os_ver:
+          [
+            3.7,
+            3.9,
+            3.11,
+            3.13,
+          ]
+        arch:
+          [
+            amd64,
+            arm,
+            arm64,
+            ppc64le,
+            s390x,
+          ]
+
+
+    name: ${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
+
+    env:
+      PY_VERSION: 3.8.18
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: download source
+        run: |
+          wget https://www.python.org/ftp/python/${{ env.PY_VERSION }}/Python-${{ env.PY_VERSION }}.tar.xz -O Python-${{ env.PY_VERSION }}.tar.xz
+          tar -xf Python-${{ env.PY_VERSION }}.tar.xz
+
+      - name: Host - update
+        run: sudo apt-get update
+
+      - name: Host - Install host qemu-static
+        run: sudo apt-get install -y qemu binfmt-support qemu-user-static
+
+      - name: Host - Docker multiarch bootstrap
+        run: sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+      - name: Host - Create docker container
+        run: docker run --name ${{ matrix.os_name }} --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
+
+      - name: Docker - apt-get update
+        run: docker exec -w /root ${{ matrix.os_name }} apk update
+
+      - name: Docker - apk install build deps
+        run: docker exec -w /root ${{ matrix.os_name }} apk add build-base linux-headers openssl-dev zlib-dev bzip2-dev  readline-dev sqlite-dev ncurses-dev tk-dev libffi-dev xz-dev
+
+      - name: Docker - configure
+        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
+
+      - name: Docker - build
+        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} make -j"$(nproc)" install
+
+      # 7z压缩
+      - name: Host - 7zip
+        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
+
+      # 上传artifact
+      - name: upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
+          path: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+
+      # 获取所有的git log和tag
+      - name: Unshallow
+        run: git fetch --prune --unshallow
+
+      # 获取git log 从 previousTag 到 lastTag
+      - name: Get git log
+        id: git-log
+        run: |
+          previousTag=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1 --max-count=1`)
+          lastTag=$(git describe --abbrev=0 --tags)
+          echo "previousTag:$previousTag ~ lastTag:$lastTag"
+          log=$(git log $previousTag..$lastTag --pretty=format:'- %cd %an: %s\n' --date=format:'%Y-%m-%d %H:%M:%S')
+          echo "$log"
+          echo "log_state="$log"" >> $GITHUB_ENV
+
+      # 创建Changelog文件 triggered by git tag push
+      - name: Generate Changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo -e '${{ env.log_state }}' > release.md
+
+      # 创建release 上传release
+      # https://github.com/marketplace/actions/create-release
+      - name: Create release and upload-archive
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: false
+          bodyFile: release.md
+          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+          allowUpdates: true
+          artifactContentType: application/x-7z-compressed
+          token: ${{ secrets.GITHUB_TOKEN }}
