@@ -1,4 +1,4 @@
-name: linux
+name: ubuntu
 
 on:
   workflow_dispatch:
@@ -7,14 +7,21 @@ on:
       - '*'
 
 jobs:
-  linux:
+  build:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         os_name: [ubuntu]
-        os_ver: [16.04]
+        os_ver:
+          [
+          14.04,
+          16.04,
+          18.04,
+          20.04,
+          22.04,
+          ]
         arch:
           [
             amd64,
@@ -25,7 +32,7 @@ jobs:
           ]
 
 
-    name: ${{ matrix.arch }}
+    name: ${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
 
     env:
       PY_VERSION: 3.8.18
@@ -48,30 +55,30 @@ jobs:
         run: sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: Host - Create docker container
-        run: docker run --name ubuntu --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
+        run: docker run --name ${{ matrix.os_name }} --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
 
       - name: Docker - apt-get update
-        run: docker exec -w /root ubuntu apt-get update
+        run: docker exec -w /root ${{ matrix.os_name }} apt-get update
 
       - name: Docker - apk install build deps
-        run: docker exec -w /root ubuntu apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev tk-dev libffi-dev liblzma-dev
+        run: docker exec -w /root ${{ matrix.os_name }} apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libncurses5-dev libncursesw5-dev tk-dev libffi-dev liblzma-dev
 
       - name: Docker - configure
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ubuntu ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
+        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
 
       - name: Docker - build
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ubuntu make -j"$(nproc)" install
+        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} make -j"$(nproc)" install
 
       # 7z压缩
       - name: Host - 7zip
-        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
+        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
 
       # 上传artifact
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          name: python-${{ env.PY_VERSION }}-${{ matrix.arch }}
-          path: python-${{ env.PY_VERSION }}-${{ matrix.arch }}.7z
+          name: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
+          path: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
 
       # 获取所有的git log和tag
       - name: Unshallow
@@ -100,9 +107,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           prerelease: false
-          name: python ${{ github.ref }}
           bodyFile: release.md
-          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.arch }}.7z
+          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
           allowUpdates: true
           artifactContentType: application/x-7z-compressed
           token: ${{ secrets.GITHUB_TOKEN }}
