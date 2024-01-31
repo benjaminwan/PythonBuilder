@@ -17,8 +17,6 @@ jobs:
         os_ver:
           [
             3.7,
-            3.9,
-            3.11,
           ]
         arch:
           [
@@ -26,7 +24,6 @@ jobs:
             arm,
             arm64,
             ppc64le,
-            s390x,
           ]
 
 

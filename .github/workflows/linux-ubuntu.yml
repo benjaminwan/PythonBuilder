@@ -14,24 +14,21 @@ jobs:
       fail-fast: false
       matrix:
         os_name: [ubuntu]
-        os_ver:
-          [
-          14.04,
-          16.04,
-          18.04,
-          20.04,
-          ]
+        list:
+          - { os_ver: 14.04, os_id: trusty }
+          - { os_ver: 16.04, os_id: xenial }
+          - { os_ver: 18.04, os_id: bionic }
+          - { os_ver: 20.04, os_id: focal }
         arch:
           [
             amd64,
             arm,
             arm64,
             ppc64le,
-            s390x,
           ]
 
 
-    name: ${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
+    name: ${{ matrix.os_name }}-${{ matrix.list.os_ver }}-${{ matrix.arch }}
 
     env:
       PY_VERSION: 3.8.18
@@ -60,7 +57,7 @@ jobs:
           echo "TZ=Etc/UTC" >> env.custom
 
       - name: Host - Create docker container
-        run: docker run --name ${{ matrix.os_name }} --env-file env.custom --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.os_ver }}
+        run: docker run --name ${{ matrix.os_name }} --env-file env.custom --platform linux/${{ matrix.arch }} -it -d -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_name }}:${{ matrix.list.os_id }}
 
       - name: Docker - apt-get update
         run: docker exec --env-file env.custom -w /root ${{ matrix.os_name }} apt-get update
@@ -76,14 +73,14 @@ jobs:
 
       # 7z压缩
       - name: Host - 7zip
-        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
+        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.list.os_ver }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
 
       # 上传artifact
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          name: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
-          path: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+          name: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.list.os_ver }}-${{ matrix.arch }}
+          path: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.list.os_ver }}-${{ matrix.arch }}.7z
 
       # 获取所有的git log和tag
       - name: Unshallow
@@ -113,7 +110,7 @@ jobs:
         with:
           prerelease: false
           bodyFile: release.md
-          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.list.os_ver }}-${{ matrix.arch }}.7z
           allowUpdates: true
           artifactContentType: application/x-7z-compressed
           token: ${{ secrets.GITHUB_TOKEN }}
