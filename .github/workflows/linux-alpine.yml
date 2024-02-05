@@ -13,6 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        ver: [3.8.18]
         os_name: [alpine]
         os_ver:
           [
@@ -30,15 +31,15 @@ jobs:
     name: ${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
 
     env:
-      PY_VERSION: 3.8.18
+      PKG_NAME: python-${{ matrix.ver }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
 
     steps:
       - uses: actions/checkout@v3
 
       - name: download source
         run: |
-          wget https://www.python.org/ftp/python/${{ env.PY_VERSION }}/Python-${{ env.PY_VERSION }}.tar.xz -O Python-${{ env.PY_VERSION }}.tar.xz
-          tar -xf Python-${{ env.PY_VERSION }}.tar.xz
+          wget https://www.python.org/ftp/python/${{ matrix.ver }}/Python-${{ matrix.ver }}.tar.xz -O Python-${{ matrix.ver }}.tar.xz
+          tar -xf Python-${{ matrix.ver }}.tar.xz
 
       - name: Host - update
         run: sudo apt-get update
@@ -59,21 +60,21 @@ jobs:
         run: docker exec -w /root ${{ matrix.os_name }} apk add build-base linux-headers openssl-dev zlib-dev bzip2-dev  readline-dev sqlite-dev ncurses-dev tk-dev libffi-dev xz-dev
 
       - name: Docker - configure
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ env.PY_VERSION }}
+        run: docker exec -w /root/Python-${{ matrix.ver }} ${{ matrix.os_name }} ./configure --enable-optimizations --prefix=/root/python-${{ matrix.ver }}
 
       - name: Docker - build
-        run: docker exec -w /root/Python-${{ env.PY_VERSION }} ${{ matrix.os_name }} make -j"$(nproc)" install
+        run: docker exec -w /root/Python-${{ matrix.ver }} ${{ matrix.os_name }} make -j"$(nproc)" install
 
       # 7z压缩
       - name: Host - 7zip
-        run: 7z a python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z python-${{ env.PY_VERSION }}
+        run: 7z a ${{ env.PKG_NAME }}.7z python-${{ matrix.ver }}
 
       # 上传artifact
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          name: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}
-          path: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+          name: ${{ env.PKG_NAME }}
+          path: ${{ env.PKG_NAME }}.7z
 
       # 获取所有的git log和tag
       - name: Unshallow
@@ -103,7 +104,7 @@ jobs:
         with:
           prerelease: false
           bodyFile: release.md
-          artifacts: python-${{ env.PY_VERSION }}-${{ matrix.os_name }}-${{ matrix.os_ver }}-${{ matrix.arch }}.7z
+          artifacts: ${{ env.PKG_NAME }}.7z
           allowUpdates: true
           artifactContentType: application/x-7z-compressed
           token: ${{ secrets.GITHUB_TOKEN }}
