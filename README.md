@@ -6,6 +6,7 @@ build python for Linux
 
 | CPU架构   | 备注             |
 |---------|----------------|
+| 386     | 32bit PC       |
 | amd64   | x86_64 一般家用PC  |
 | arm     | arm/v7         |
 | arm64   | arm64/v8       |
